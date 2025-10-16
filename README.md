@@ -8,6 +8,8 @@ Experimental results on eight real-world datasets demonstrate the improvements o
 ## Requirement
 For the dependencies required by this code, please refer to `requirements.txt`.
 
+Simply run `pip install -r requirements.txt` to set up.
+
 ## Quick Start
 For quick start, you could run the code:
 ```bash
@@ -24,6 +26,8 @@ For example,
 ```bash
 python main.py --dataset IMDBBINARY --K 1 --T 2 --N 16 --hidden_size 1024 --node_cmp 1 --edge_info 1
 ```
+
+Output logs are in `logs/info.log` and `logs/<dataset name>/*`
 
 ## Detailed Settings
 - dataset: supported dataset names, `COLLAB`, `IMDBBINARY`, `IMDBMULTI`, `DD`, `NCI1`, `NCI109`, `PTC`, `PROTEINS`
@@ -76,7 +80,7 @@ git clone https://github.com/loukasa/graph-coarsening.git l19
 We express our gratitude for the open-source codes provided by [U2GNN](https://github.com/daiquocnguyen/Graph-Transformer), [GarphMAE](https://github.com/THUDM/GraphMAE), [KGC](https://github.com/ychen-stat-ml/GW-Graph-Coarsening) and [L19](https://github.com/loukasa/graph-coarsening/tree/v1.1).
 
 ## FAQ
-- Q1: TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
+- Q1: TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N
 
 A1: Use `A.toarray()` to transform A from sparse metric to dense metric.
 
@@ -87,7 +91,3 @@ A2: Use `networkx.from_scipy_sparse_array()` instead.
 - Q3: AttributeError: Module 'scipy' has no attribute 'newaxis'
 
 A3: Use `numpy.newaxis` instead.
-
-- Q4: ModuleNotFoundError: No module named 's-gwl'
-
-A4: Comment out the relevant imports, as the related modules or checkpoints are not used in the experiment.
