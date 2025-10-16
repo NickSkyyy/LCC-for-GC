@@ -55,6 +55,7 @@ python main.py
 - std: the noise injection ratio, in `[0, 0.1, 0.2, 0.3, 0.4, 0.5]`
 - age: the edge removal ratio, in `[0, 0.1, 0.2, 0.3, 0.4, 0.5]`
 - cmp_type: supported coarsening algorithm names
+  - LCC4GC (Ours, default): `cmpx`
   - Neighbor: `1hop`
   - Random: `rand`
   - NetworkX (NtX): `nxcyc`, `nxcli`
@@ -73,3 +74,20 @@ git clone https://github.com/loukasa/graph-coarsening.git l19
 
 ## Acknowledgements
 We express our gratitude for the open-source codes provided by [U2GNN](https://github.com/daiquocnguyen/Graph-Transformer), [GarphMAE](https://github.com/THUDM/GraphMAE), [KGC](https://github.com/ychen-stat-ml/GW-Graph-Coarsening) and [L19](https://github.com/loukasa/graph-coarsening/tree/v1.1).
+
+## FAQ
+- Q1: TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.
+
+A1: Use `A.toarray()` to transform A from sparse metric to dense metric.
+
+- Q2: AttributeError: module 'networkx' has no attribute 'from_scipy_sparse_matrix'
+
+A2: Use `networkx.from_scipy_sparse_array()` instead.
+
+- Q3: AttributeError: Module 'scipy' has no attribute 'newaxis'
+
+A3: Use `numpy.newaxis` instead.
+
+- Q4: ModuleNotFoundError: No module named 's-gwl'
+
+A4: Comment out the relevant imports, as the related modules or checkpoints are not used in the experiment.

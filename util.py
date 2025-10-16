@@ -344,21 +344,23 @@ def load_data(args, dataset, degree4label=False):
           groups.append(list(pnodes))
       elif NODE_CMP_TYPE == "gwnei":
         sys.path.append(os.path.join(os.path.dirname(__file__), "algorithms", "gw"))
-        from algorithms.gw import coarsening as gwc
+        from algorithms.gw.graph_coarsening import coarsening_utils as cu
         adj = nx.adjacency_matrix(graphs[idx].graph).toarray()
-        _, _, cidx = gwc.template_graph_coarsening(adj, n=5, method="variation_neighborhood")
+        G = cu.gsp.graphs.Graph(adj)
+        C, _, _, _ = cu.coarsen(G, K=5, max_levels=1, method="variation_neighborhood")
         dmap = defaultdict(list)
-        for i, item in enumerate(cidx):
-          dmap[item].append(i)
+        for i in range(len(C.indices)):
+          dmap[C.indices[i]].append(C.indptr[i])
         groups = list(dmap.values())
       elif NODE_CMP_TYPE == "gwcli":
         sys.path.append(os.path.join(os.path.dirname(__file__), "algorithms", "gw"))
-        from algorithms.gw import coarsening as gwc
+        from algorithms.gw.graph_coarsening import coarsening_utils as cu
         adj = nx.adjacency_matrix(graphs[idx].graph).toarray()
-        _, _, cidx = gwc.template_graph_coarsening(adj, n=5, method="variation_cliques")
+        G = cu.gsp.graphs.Graph(adj)
+        C, _, _, _ = cu.coarsen(G, K=5, max_levels=1, method="variation_cliques")
         dmap = defaultdict(list)
-        for i, item in enumerate(cidx):
-          dmap[item].append(i)
+        for i in range(len(C.indices)):
+          dmap[C.indices[i]].append(C.indptr[i])
         groups = list(dmap.values())
       elif NODE_CMP_TYPE == "nxcli":
         try:
