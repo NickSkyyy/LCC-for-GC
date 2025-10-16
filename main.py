@@ -40,6 +40,9 @@ parser.add_argument("--T", default=1, type=int, help="Number of steps T in [1, 2
 
 parser.add_argument("--cmp_type", default="cmpx")
 
+parser.add_argument("--std", default=0, type=float, help="Noise Ratio")
+parser.add_argument("--age", default=0, type=float, help="Removal Ratio")
+
 args = parser.parse_args()
 
 # device
@@ -58,21 +61,20 @@ formats = logging.Formatter("%(asctime)s %(levelname)s %(message)s", datefmt="%Y
 file_handler = logging.FileHandler(logs_dir + "/info.log")
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(formats)
-# console_handler = logging.StreamHandler()
-# console_handler.setLevel(logging.INFO)
-# console_handler.setFormatter(formats)
 
 logs = logging.getLogger()
 logs.setLevel(logging.INFO)
 logs.addHandler(file_handler)
-# logs.addHandler(console_handler)
 
 logs.info(device)
 logs.info(args)
 
 # load data
 degree4label = False
+start_time = time.time()
 origin, graphs, line_graphs, num_classes = load_data(args, args.dataset, degree4label)
+end_time = time.time()
+print("all pre", end_time - start_time)
 if args.dataset == "TOY":
   train_set, test_set = [[0, 1, 2, 3]], [[0, 1, 2, 3]]
 else:
@@ -83,12 +85,6 @@ feature_size = origin[0].feature_nodes.shape[1]
 if args.model == "CMPX":
   model = CMPX(args, dropout=args.dropout, feature_size=feature_size, hidden_size=args.hidden_size,
               num_ATT_layers=args.T, num_classes=num_classes, num_GNN_layers=args.K).to(device)
-# if args.node_cmp == 1:
-#   model = U2GNN_CMP(dropout=args.dropout, feature_size=feature_size, hidden_size=args.hidden_size, 
-#                 num_ATT_layers=args.T, num_classes=num_classes, num_GNN_layers=args.K).to(device)
-# else:
-#   model = U2GNN(dropout=args.dropout, feature_size=feature_size, hidden_size=args.hidden_size, 
-#                 num_ATT_layers=args.T, num_classes=num_classes, num_GNN_layers=args.K).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 batches_per_epoch = int((len(train_set) - 1) / args.batch_size) + 1
 schedular = torch.optim.lr_scheduler.StepLR(optimizer, step_size=batches_per_epoch, gamma=0.1)
@@ -147,15 +143,15 @@ for epoch in range(args.epochs):
     start = time.time()
     if args.model == "CMPX":
       train_loss, origin_temp, origin_graph_temp = train(model, train_fold[0], train_fold[1], train_fold[2], num_classes, args, optimizer, device)
-      # if args.dataset == "TOY" or epoch == 49:
-      #   # logs.info(origin_temp)
-      #   # logs.info(origin_graph_temp)
-      #   for parameter in model.parameters():
-      #     logs.info(type(parameter), parameter.shape, parameter)
-      # 验证集
+
+      end = time.time()
+      print("train time", end - start)
       valid_acc = evaluate(model, valid_fold[0], valid_fold[1], valid_fold[2], args, device)
-      # 测试集
+
+      start_test = time.time()
       test_acc = evaluate(model, test_fold[0], test_fold[1], test_fold[2], args, device)
+      end_test = time.time()
+      print("test", end_test - start_test)
     end = time.time()
 
     times.append(end - start)
@@ -166,16 +162,6 @@ for epoch in range(args.epochs):
     logs.info("{epoch %d fold %d train %d valid %d test %d time %.2f loss %.2f valid_acc %.2f test_acc %.2f}" %
           (epoch, i, len(train_fold[0]), len(valid_fold[0]), len(test_fold[0]), end - start, train_loss, valid_acc * 100, test_acc * 100))
 
-  if epoch == 49:
-    params = []
-    for param in model.parameters():
-      params.append(param)
-    logs.info("OOOOOK")
-    for tens in params[-2]:
-      for val in tens:
-        logs.info(val)
-    logs.info("DDDDDDone")
-
   avg_time = np.mean(times)
   avg_loss.append(np.mean(losses))
   avg_acc = round(np.mean(valid_accs) * 100, 2)
@@ -185,7 +171,6 @@ for epoch in range(args.epochs):
     max_valid_acc = avg_acc
     min_valid_bias = bias
   accs.append(test_accs)
-  # 单个epoch下，所有fold在验证集上的结果
   logs.info("# avg. time/loss/acc: %.2f/%.2f/%.2f±%.2f" % (avg_time, avg_loss[-1], avg_acc, bias))
 
   if epoch > 5 and avg_loss[-1] > np.mean(avg_loss[-6:-1]):

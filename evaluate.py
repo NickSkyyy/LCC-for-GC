@@ -1,6 +1,5 @@
 from model import *
 from util import *
-from sklearn.metrics import roc_auc_score
 
 def evaluate(model, origin, graphs, line_graphs, args, device):
   model.eval()
@@ -25,8 +24,6 @@ def evaluate(model, origin, graphs, line_graphs, args, device):
         batch_lg = [line_graphs[j] for j in selected]
         x[2], gp[2], fea[2], _ = get_batch_data(batch_lg, device, args.N)
       
-      # prediction = model(x[0], gp[0], fea[0]).detach()
-      # prediction = model(x[0], gp[0], fea[0], x[1], gp[1], fea[1]).detach()
       prediction, origin_temp, origin_graph_temp = model(x[0], gp[0], fea[0], x[1], gp[1], fea[1], x[2], gp[2], fea[2])
       prediction = prediction.detach()
       predictions.append(prediction)
@@ -34,5 +31,4 @@ def evaluate(model, origin, graphs, line_graphs, args, device):
   predictions = predictions.max(1, keepdim=True)[1]
   labels = torch.LongTensor([graph.label for graph in origin]).to(device)
   acc = (predictions.eq(labels.view_as(predictions)).sum().cpu().item()) / float(len(origin))
-  # acc = roc_auc_score(labels.view_as(predictions).cpu().numpy(), predictions.cpu().numpy())
   return acc

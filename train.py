@@ -39,8 +39,6 @@ def train(model, origin, graphs, line_graphs, num_classes, args, optimizer, devi
 
     labels = label_smoothing(labels, num_classes)
     optimizer.zero_grad()
-    # prediction = model(x[0], gp[0], fea[0])
-    # prediction = model(x[0], gp[0], fea[0], x[1], gp[1], fea[1])
     prediction, origin_temp, origin_graph_temp = model(x[0], gp[0], fea[0], x[1], gp[1], fea[1], x[2], gp[2], fea[2])
     loss = cross_entropy(prediction, labels)
     loss.backward()

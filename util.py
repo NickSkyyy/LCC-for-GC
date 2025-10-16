@@ -5,20 +5,14 @@ import networkx as nx
 import numpy as np
 import os
 import random
-import re
 import time
 import torch
 import torch.nn as nn
 import sys
-sys.setrecursionlimit(4000)
+sys.setrecursionlimit(10000)
 
 from collections import defaultdict
-from algorithms.gw import coarsening_utils as cu
-from algorithms.l19.libraries import coarsening_utils as lcu
 from sklearn.model_selection import StratifiedKFold
-from torch_geometric.data import Data
-from torch_geometric.loader import DataLoader
-from torch_geometric.datasets import LRGBDataset
 from tqdm import tqdm
 
 class MyGraph(object):
@@ -52,24 +46,13 @@ def get_batch_data(graphs, device, N):
   """
   concat = np.concatenate([graph.feature_nodes for graph in graphs])
   concat = torch.from_numpy(concat).to(device)
-  # concat_cmp = np.concatenate([graph.feature_nodes for graph in graphs_cmp])
-  # concat_cmp = torch.from_numpy(concat_cmp).to(device)
-  # for i in range(len(graphs[0].graph)):
-  #   print(concat[i])
 
   # get graph pool & edge mat
   sum = [0]
-  # edge_mat = graph.edge_mat (+ sum[i])
   edge_mat = []
   for i, graph in enumerate(graphs):
     sum.append(sum[i] + len(graph.graph))
     edge_mat.append(graph.edge_mat + sum[i])
-
-  # sum_cmp = [0]
-  # edge_mat_cmp = []
-  # for i, graph in enumerate(graphs_cmp):
-  #   sum.append(sum_cmp[i] + len(graph.graph))
-  #   edge_mat_cmp.append(graph.edge_mat + sum_cmp[i])
 
   # graph pool
   # indices is the list of [graph_id, node_id]
@@ -102,15 +85,9 @@ def get_batch_data(graphs, device, N):
   
   inputs = np.array(neighbors)
   inputs = torch.transpose(torch.from_numpy(inputs), 0, 1).to(device)
-  # for i in range(len(graphs[0].graph)):
-  #   print(inputs[:, i])
   
   labels = np.array([graph.label for graph in graphs])
   labels = torch.from_numpy(labels).to(device).type(torch.int64)
-
-  # print(inputs.shape)
-  # print(graph_pool.shape)
-  # print(concat.shape)
 
   return inputs, graph_pool, concat, labels
 
@@ -134,146 +111,30 @@ def load_data(args, dataset, degree4label=False):
   nodes = 0
   edges = 0
   degrees = 0
-  
-  if dataset == "MalNet":
-    categories = ["add", "adw", "ben", "dow", "tro"]
-    print("load MalNet train")
-    with open("./dataset/MalNet/split_info_tiny/type/train.txt", "r") as f:
-      while True:
-        fname = f.readline().strip()
-        if fname == "":
-          break
-        label_graph = categories.index(fname[:3])
-        if label_graph not in label_graph2num:
-          val = len(label_graph2num)
-          label_graph2num.setdefault(label_graph, val)
-        with open("./dataset/MalNet/malnet-graphs-tiny/%s.edgelist" % fname, 'r') as g:
-          for _ in range(3):
-            g.readline()
-          nnode, nedge = re.findall("\d+", g.readline())
-          nodes += int(nnode)
-          edges += int(nedge)
-          g.readline()
+  start_time = 0
+  end_time = 0
 
-          # build graph
-          graph = nx.Graph()
-          label_nodes = []
-          feature_nodes = []
-          edge_list = []
-          ss = set()
-          for _ in range(int(nedge)):
-            u, v = g.readline().strip().split()
-            ss.add(int(u))
-            ss.add(int(v))
-            edge_list.append([int(u), int(v)])
-            # edge_list.append([int(v), int(u)])
-          ss = sorted(list(ss))
-          for node in range(len(ss)):
-            graph.add_node(node, label="%d" % node)
-          graph.add_edges_from([[ss.index(u), ss.index(v)] for u, v in edge_list])
-          feature_nodes = None
-          label_node = 0
-          if label_node not in label_node2num:
-            val = len(label_node2num)
-            label_node2num.setdefault(label_node, val)
-          label_nodes.append(label_node2num.get(label_node))
-          degrees += np.mean(list(dict(graph.degree).values()))
-          graphs.append(MyGraph(graph, label_graph2num.get(label_graph), label_nodes, feature_nodes))
-    print("load MalNet valid")
-    with open("./dataset/MalNet/split_info_tiny/type/val.txt", "r") as f:
+  if dataset == "Test":
+    N = 1000
+    M = 5 * N
+    for _ in range(10):
       while True:
-        fname = f.readline().strip()
-        if fname == "":
+        G = nx.random_graphs.gnm_random_graph(N, M)
+        if nx.connected.is_connected(G):
           break
-        label_graph = categories.index(fname[:3])
-        if label_graph not in label_graph2num:
-          val = len(label_graph2num)
-          label_graph2num.setdefault(label_graph, val)
-        with open("./dataset/MalNet/malnet-graphs-tiny/%s.edgelist" % fname, 'r') as g:
-          for _ in range(3):
-            g.readline()
-          nnode, nedge = re.findall("\d+", g.readline())
-          nodes += int(nnode)
-          edges += int(nedge)
-          g.readline()
-
-          # build graph
-          graph = nx.Graph()
-          label_nodes = []
-          feature_nodes = []
-          edge_list = []
-          ss = set()
-          for _ in range(int(nedge)):
-            u, v = g.readline().strip().split()
-            ss.add(int(u))
-            ss.add(int(v))
-            edge_list.append([int(u), int(v)])
-            # edge_list.append([int(v), int(u)])
-          ss = sorted(list(ss))
-          for node in range(len(ss)):
-            graph.add_node(node, label="%d" % node)
-          graph.add_edges_from([[ss.index(u), ss.index(v)] for u, v in edge_list])
-          feature_nodes = None
-          label_node = 0
-          if label_node not in label_node2num:
-            val = len(label_node2num)
-            label_node2num.setdefault(label_node, val)
-          label_nodes.append(label_node2num.get(label_node))
-          degrees += np.mean(list(dict(graph.degree).values()))
-          graphs.append(MyGraph(graph, label_graph2num.get(label_graph), label_nodes, feature_nodes))
-    print("load MalNet test")
-    with open("./dataset/MalNet/split_info_tiny/type/test.txt", "r") as f:
-      while True:
-        fname = f.readline().strip()
-        if fname == "":
-          break
-        label_graph = categories.index(fname[:3])
-        if label_graph not in label_graph2num:
-          val = len(label_graph2num)
-          label_graph2num.setdefault(label_graph, val)
-        with open("./dataset/MalNet/malnet-graphs-tiny/%s.edgelist" % fname, 'r') as g:
-          for _ in range(3):
-            g.readline()
-          nnode, nedge = re.findall("\d+", g.readline())
-          nodes += int(nnode)
-          edges += int(nedge)
-          g.readline()
-
-          # build graph
-          graph = nx.Graph()
-          label_nodes = []
-          feature_nodes = []
-          edge_list = []
-          ss = set()
-          for _ in range(int(nedge)):
-            u, v = g.readline().strip().split()
-            ss.add(int(u))
-            ss.add(int(v))
-            edge_list.append([int(u), int(v)])
-            # edge_list.append([int(v), int(u)])
-          ss = sorted(list(ss))
-          for node in range(len(ss)):
-            graph.add_node(node, label="%d" % node)
-          graph.add_edges_from([[ss.index(u), ss.index(v)] for u, v in edge_list])
-          feature_nodes = None
-          label_node = 0
-          if label_node not in label_node2num:
-            val = len(label_node2num)
-            label_node2num.setdefault(label_node, val)
-          label_nodes.append(label_node2num.get(label_node))
-          degrees += np.mean(list(dict(graph.degree).values()))
-          graphs.append(MyGraph(graph, label_graph2num.get(label_graph), label_nodes, feature_nodes))
-  elif dataset == "Peptides-func":
-    train = LRGBDataset("./dataset/Peptides-func", "Peptides-func", "train")
-    valid = LRGBDataset("./dataset/Peptides-func", "Peptides-func", "val")
-    test = LRGBDataset("./dataset/Peptides-func", "Peptides-func", "test")
-    for graph in train:
-      print(graph.y)
-      input()
+        print("Fail")
+      print(len(G.nodes), len(G.edges))
+      nodes += len(G.nodes)
+      edges += len(G.edges)
+      label_graph = 0
+      label_nodes = [0 for i in range(N)]
+      label_graph2num.setdefault(0, 0)
+      label_graph2num.setdefault(1, 1)
+      label_node2num.setdefault(0, 0)
+      graphs.append(MyGraph(G, label_graph, label_nodes, None))
   else:
     with open("./dataset/%s/%s.txt" % (dataset, dataset), 'r') as f:
       num_graph = int(f.readline().strip())
-      # for _ in range(num_graph):
       for _ in tqdm(range(num_graph)):
         row = f.readline().strip().split()
         num_node, label_graph = [int(x) for x in row]
@@ -293,11 +154,11 @@ def load_data(args, dataset, degree4label=False):
           edges += num_edge
           # find attributes
           attr = None
-          # if num_edge + 2 != len(row):
-          #   print("find attributes")
-          #   # attr = np.array([float(x) for x in row[num_edge + 2:]])
-          #   attr = [float(x) for x in row[num_edge + 2:]]
-          #   feature_nodes.append(attr)
+          if num_edge + 2 != len(row):
+            print("find attributes")
+            # attr = np.array([float(x) for x in row[num_edge + 2:]])
+            attr = [float(x) for x in row[num_edge + 2:]]
+            feature_nodes.append(attr)
           # node label
           if label_node not in label_node2num:
             val = len(label_node2num)
@@ -306,11 +167,18 @@ def load_data(args, dataset, degree4label=False):
           # add edges
           for k in range(2, 2 + num_edge):
             graph.add_edge(node, int(row[k]))
+
+          if args.age > 0.05:
+            edges -= int(num_edge * args.age)
+            edge_rm = random.sample(list(graph.edges()), int(num_edge * args.age))
+            graph.remove_edges_from(edge_rm)
+
           # turn feature list to np format
           if attr is None:
             feature_nodes = None
           else:
             feature_nodes = np.stack(feature_nodes)
+          
 
         degrees += np.mean(list(dict(graph.degree).values()))
         graphs.append(MyGraph(graph, label_graph2num.get(label_graph), label_nodes, feature_nodes))
@@ -338,7 +206,6 @@ def load_data(args, dataset, degree4label=False):
     print("# degree as label: True")
     temp = set()
     for graph in graphs:
-      # graph.label_nodes = list(dict(graph.graph.degree).values())
       graph.label_nodes = [[k, v] for k, v in dict(graph.graph.degree).items()]
       graph.label_nodes = [kv[1] for kv in sorted(graph.label_nodes, key=lambda x : x[0])]
       temp = temp.union(set(dict(graph.graph.degree).values()))
@@ -351,19 +218,11 @@ def load_data(args, dataset, degree4label=False):
     graph.feature_nodes = np.zeros((len(graph.label_nodes), len(label_node2num)), dtype=np.float32)
     for i, j in enumerate(graph.label_nodes):
       graph.feature_nodes[i][j] = 1
-
-  # 从这里往后默认graphs是点图的压缩结果
-  # # mol-HIV
-  # ids = []
-  # for i, graph in enumerate(graphs):
-  #   if graph.label == 1:
-  #     ids.append(i)
-  # cnt = len(graphs) - len(ids)
-  # for _ in range(cnt):
-  #   ii = random.choice(ids)
-  #   gg = copy.deepcopy(graphs[ii])
-  #   graphs.append(gg)
-  # print("now:", len(graphs))
+    if args.std > 0.05:
+      fstd = np.std(graph.feature_nodes, axis=0)
+      fstd = np.where(fstd == 0, 1e-8, fstd)
+      noise = np.random.normal(loc=0.0, scale=args.std * fstd, size=graph.feature_nodes.shape)
+      graph.feature_nodes += noise
 
   if args.node_cmp == 1:
     origin = copy.deepcopy(graphs)
@@ -407,7 +266,6 @@ def load_data(args, dataset, degree4label=False):
     node_cur = nodes[-1] 
     cur.append(node_cur)
 
-    # 自环应当从邻居节点中删除
     neighbors = list(set(graph.sparse_A[node_cur]).intersection(set(nodes)) - {node_cur})
     rests = list(set(nodes) - set(neighbors) - {node_cur})
 
@@ -444,7 +302,6 @@ def load_data(args, dataset, degree4label=False):
   if args.node_cmp == 1:
     start_time = time.time()
     print("node-level compressions")
-    # 对点图压缩
     for idx in tqdm(range(len(graphs))):
       # save labels
       temp = {}
@@ -464,14 +321,13 @@ def load_data(args, dataset, degree4label=False):
         try:
           groups, vis = parse_group(graphs[idx], d2map, [], set())
         except RecursionError:
-          print("Error: graph %d" % idx)
-      
-        # for loops (begin)
+          print("Clique Error: graph %d" % idx)
+
         try:
           if len(groups) == 0:
             groups = find_loop(graphs[idx], d2map[0])
         except RecursionError:
-          print("Error: graph %d" % idx)
+          print("Loop Error: graph %d" % idx)
       elif NODE_CMP_TYPE == "1hop":
         res = list(graphs[idx].graph.nodes())
         while len(res) != 0:
@@ -487,20 +343,22 @@ def load_data(args, dataset, degree4label=False):
           pnodes = set(random.sample(list(graphs[idx].graph.nodes()), k=k))
           groups.append(list(pnodes))
       elif NODE_CMP_TYPE == "gwnei":
+        sys.path.append(os.path.join(os.path.dirname(__file__), "algorithms", "gw"))
+        from algorithms.gw import coarsening as gwc
         adj = nx.adjacency_matrix(graphs[idx].graph).toarray()
-        G = cu.gsp.graphs.Graph(adj)
-        C, _, _, _ = cu.coarsen(G, K=5, max_levels=1, method="variation_neighborhood")
+        _, _, cidx = gwc.template_graph_coarsening(adj, n=5, method="variation_neighborhood")
         dmap = defaultdict(list)
-        for i in range(len(C.indices)):
-          dmap[C.indices[i]].append(C.indptr[i])
+        for i, item in enumerate(cidx):
+          dmap[item].append(i)
         groups = list(dmap.values())
       elif NODE_CMP_TYPE == "gwcli":
+        sys.path.append(os.path.join(os.path.dirname(__file__), "algorithms", "gw"))
+        from algorithms.gw import coarsening as gwc
         adj = nx.adjacency_matrix(graphs[idx].graph).toarray()
-        G = cu.gsp.graphs.Graph(adj)
-        C, _, _, _ = cu.coarsen(G, K=5, max_levels=1, method="variation_cliques")
+        _, _, cidx = gwc.template_graph_coarsening(adj, n=5, method="variation_cliques")
         dmap = defaultdict(list)
-        for i in range(len(C.indices)):
-          dmap[C.indices[i]].append(C.indptr[i])
+        for i, item in enumerate(cidx):
+          dmap[item].append(i)
         groups = list(dmap.values())
       elif NODE_CMP_TYPE == "nxcli":
         try:
@@ -522,6 +380,7 @@ def load_data(args, dataset, degree4label=False):
           print(item)  
         input()
       elif NODE_CMP_TYPE == "l19nei":
+        from algorithms.l19.graph_coarsening import coarsening_utils as lcu
         adj = nx.adjacency_matrix(graphs[idx].graph).toarray()
         G = lcu.gsp.graphs.Graph(adj)
         C, _, _, _ = lcu.coarsen(G, K=5, max_levels=1, method="variation_neighborhood")
@@ -530,6 +389,7 @@ def load_data(args, dataset, degree4label=False):
           dmap[C.indices[i]].append(C.indptr[i])
         groups = list(dmap.values())
       elif NODE_CMP_TYPE == "l19cli":
+        from algorithms.l19.graph_coarsening import coarsening_utils as lcu
         adj = nx.adjacency_matrix(graphs[idx].graph).toarray()
         G = lcu.gsp.graphs.Graph(adj)
         C, _, _, _ = lcu.coarsen(G, K=5, max_levels=1, method="variation_cliques")
@@ -556,7 +416,7 @@ def load_data(args, dataset, degree4label=False):
         fea_new.append(graphs[idx].feature_nodes[node])
       # edges
       edges_new = []    
-      edges_temp = []
+      # edges_temp = []
       edges_map = []
       for i in range(len(nodes_new)):
         edges_map.append([0 for _ in range(len(nodes_new))])
@@ -574,26 +434,7 @@ def load_data(args, dataset, degree4label=False):
           next_nei = temp
           if len(set(node).intersection(next_nei)) != 0 or len(set(next).intersection(node_nei)) != 0:
             edges_new.append([u, v])
-          # if len(set(node).intersection(next)) != 0:
-          #   edges_new.append([u, v])
-          #   edges_map[u][v] = 1
-          #   edges_map[v][u] = 1
-          # elif len(set(node).intersection(next_nei)) != 0 or len(set(next).intersection(node_nei)) != 0:
-          #   edges_temp.append([u, v])
-      # 检查环路是否是通过边连接，而不是通过重合点
-      # 如果是边的话，需要检测是否通过其他节点进行连接，如果是，则两个新点之间不需要连边
-      # 否则，点之间需要连接
-      # for u, v in edges_temp:
-      #   node, next = set(), set()
-      #   for i, x in enumerate(edges_map[u]):
-      #     if x == 1:
-      #       node.add(i)
-      #   for i, x in enumerate(edges_map[v]):
-      #     if x == 1:
-      #       next.add(i)
-      #   if len(set(node).intersection(next)) == 0:
-      #     edges_new.append([u, v])
-      # new graph
+
       graph_temp = nx.Graph()
       for node, _ in enumerate(nodes_new):
         graph_temp.add_node(node, label="%d" % node)
@@ -619,7 +460,6 @@ def load_data(args, dataset, degree4label=False):
         graphs[idx].edge_mat = np.transpose(np.array(temp, dtype=np.int32), (1, 0))
       else:
         graphs[idx].edge_mat = np.array([[], []], dtype=np.int32)
-      # print(nodes_new)
     for x in cases:
       color_seq = [color_map[graphs[x].label_nodes[node]] for node in graphs[x].graph.nodes()]
       nx.draw(graphs[x].graph, pos=nx.spring_layout(graphs[x].graph), node_color=color_seq, node_size=50)
@@ -633,13 +473,12 @@ def load_data(args, dataset, degree4label=False):
     lcc_n += len(gg.graph.nodes())
     lcc_e += len(gg.graph.edges())
   print("lcc", lcc_n / len(graphs), lcc_e / len(graphs), lcc_time)
-  exit(0)
-  # exit(0)
+
   # build line graph
+  line_graphs = copy.deepcopy(graphs)
   if args.edge_info == 1 or args.edge_cmp == 1:
     print("build line graphs")
     start_time = time.time()
-    line_graphs = copy.deepcopy(graphs)
     for idx in tqdm(range(len(line_graphs))):   
       graph = line_graphs[idx]
       tgraph = nx.line_graph(graph.graph)
@@ -649,13 +488,10 @@ def load_data(args, dataset, degree4label=False):
       temp = graph.graph.nodes()
       node2label = {old : new for new, old in enumerate(graph.graph.nodes())}
       graph.graph = nx.relabel_nodes(graph.graph, node2label)
-      # 先做成同质图
       graph.label_nodes = [0 for _ in range(len(graph.graph.nodes()))]
       # line graph feature nodes
       graph.feature_nodes = np.zeros(((len(graph.label_nodes), len(label_node2num))), dtype=np.float32)
-      for x, (i, j) in enumerate(temp):
-        # WARN: 之前采用的是origin
-        # graph.feature_nodes[x] += origin[idx].feature_nodes[i] + origin[idx].feature_nodes[j]    
+      for x, (i, j) in enumerate(temp): 
         graph.feature_nodes[x] += graphs[idx].feature_nodes[i] + graphs[idx].feature_nodes[j] 
       # line graph sparse_A
       graph.sparse_A = [[] for _ in range(len(graph.graph))]
@@ -688,11 +524,9 @@ def load_data(args, dataset, degree4label=False):
     lgc_e += len(gg.graph.edges())
   
   print("lgc", lgc_n / len(graphs), lgc_e / len(graphs), lgc_time)
-  exit(0)
 
   if args.edge_cmp == 1:
     print("edge-level compressions")
-    # 对线图压缩
     for idx in tqdm(range(len(line_graphs))):
       # save labels
       temp = {}
@@ -708,13 +542,6 @@ def load_data(args, dataset, degree4label=False):
       d2map.sort(reverse=True)
 
       groups, vis = parse_group(line_graphs[idx], d2map, [], set())
-    
-      # for loops (begin)
-      # if len(groups) == 0:
-      #   groups = find_loop(line_graphs[idx], d2map)
-      # print(idx)
-      # print(loops)
-      # continue
 
       nodes_new = []
       fea_new = []
@@ -732,7 +559,7 @@ def load_data(args, dataset, degree4label=False):
         fea_new.append(line_graphs[idx].feature_nodes[node])
       # edges
       edges_new = []    
-      edges_temp = []
+      # edges_temp = []
       edges_map = []
       for i in range(len(nodes_new)):
         edges_map.append([0 for _ in range(len(nodes_new))])
@@ -750,25 +577,7 @@ def load_data(args, dataset, degree4label=False):
           next_nei = temp
           if len(set(node).intersection(next_nei)) != 0 or len(set(next).intersection(node_nei)) != 0:
             edges_new.append([u, v])
-          # if len(set(node).intersection(next)) != 0:
-          #   edges_new.append([u, v])
-          #   edges_map[u][v] = 1
-          #   edges_map[v][u] = 1
-          # elif len(set(node).intersection(next_nei)) != 0 or len(set(next).intersection(node_nei)) != 0:
-          #   edges_temp.append([u, v])
-      # 检查环路是否是通过边连接，而不是通过重合点
-      # 如果是边的话，需要检测是否通过其他节点进行连接，如果是，则两个新点之间不需要连边
-      # 否则，点之间需要连接
-      # for u, v in edges_temp:
-      #   node, next = set(), set()
-      #   for i, x in enumerate(edges_map[u]):
-      #     if x == 1:
-      #       node.add(i)
-      #   for i, x in enumerate(edges_map[v]):
-      #     if x == 1:
-      #       next.add(i)
-      #   if len(set(node).intersection(next)) == 0:
-      #     edges_new.append([u, v])
+
       # new graph
       graph_temp = nx.Graph()
       for node, _ in enumerate(nodes_new):
@@ -795,7 +604,6 @@ def load_data(args, dataset, degree4label=False):
         line_graphs[idx].edge_mat = np.transpose(np.array(temp, dtype=np.int32), (1, 0))
       else:
         line_graphs[idx].edge_mat = np.array([[], []], dtype=np.int32)
-      # print(nodes_new)
     for x in cases:
       color_seq = [color_map[line_graphs[x].label_nodes[node]] for node in origin[x].graph.nodes()]
       nx.draw(line_graphs[x].graph, pos=nx.spring_layout(line_graphs[x].graph), node_color=color_seq, node_size=50)
@@ -846,3 +654,48 @@ def separate_data(graphs, folds=10):
     train_set.append(train)
     test_set.append(test)
   return train_set, test_set
+
+# from gw.util
+def multiply_Q(G, Q):
+    Gc = np.dot(np.dot(np.transpose(Q), G), Q)
+    return Gc
+
+def multiply_Q_lift(Gc, Q):
+    G = np.dot(np.dot(Q, Gc), np.transpose(Gc))
+    return G
+
+def idx2Q(idx, n):
+    N = idx.shape[0]
+    Q = np.zeros((N, n))
+    for i in range(N):
+        Q[i, idx[i]] = 1
+    return Q
+
+def Q2idx(Q):
+    N = Q.shape[0]
+    n = Q.shape[1]
+    idx = np.zeros(N, dtype=np.int32)
+    for i in range(N):
+        for j in range(n):
+            if Q[i, j] > 0:
+                idx[i] = j
+    return idx
+
+def lift_Q(Q):
+    # Q = Cp.T
+    # return Q0: \bar{C}.T
+    N = Q.shape[0]
+    n = Q.shape[1]
+    idx = np.zeros(N, dtype=np.int16)
+    for i in range(N):
+        for j in range(n):
+            if Q[i, j] == 1:
+                idx[i] = j
+    d = np.zeros((n, 1))
+    for i in range(N):
+        d[idx[i]] = d[idx[i]] + 1
+
+    Q2 = np.zeros((N, n))
+    for i in range(N):
+        Q2[i, idx[i]] = 1/d[idx[i]]
+    return Q2
