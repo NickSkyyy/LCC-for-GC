@@ -27,15 +27,15 @@ def train(model, origin, graphs, line_graphs, num_classes, args, optimizer, devi
     gp = [None for _ in range(3)]
     fea = [None for _ in range(3)]
     batch_graphs = [origin[i] for i in selected]
-    x[0], gp[0], fea[0], labels = get_batch_data(batch_graphs, device, args.N)
+    x[0], gp[0], fea[0], labels = get_batch_data(batch_graphs, device, args.s)
 
     if args.node_cmp == 1:
       batch_cmp = [graphs[i] for i in selected] 
-      x[1], gp[1], fea[1], _ = get_batch_data(batch_cmp, device, args.N)
+      x[1], gp[1], fea[1], _ = get_batch_data(batch_cmp, device, args.s)
 
     if args.edge_info == 1 or args.edge_cmp == 1:
       batch_lg = [line_graphs[i] for i in selected]
-      x[2], gp[2], fea[2], _ = get_batch_data(batch_lg, device, args.N)
+      x[2], gp[2], fea[2], _ = get_batch_data(batch_lg, device, args.s)
 
     labels = label_smoothing(labels, num_classes)
     optimizer.zero_grad()

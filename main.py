@@ -31,7 +31,7 @@ parser.add_argument("--folds", default=10, type=int, help="K-folds for train & t
 parser.add_argument("--hidden_size", default=1024, type=int, help="Hidden layer size s in [128, 256, 512, 1024]")
 parser.add_argument("--K", default=1, type=int, help="Number of U2GNN layers in [1, 2, 3]")
 parser.add_argument("--learning_rate", default=1e-4, type=float , help="Learning rate lr in [5e-5, 1e-4, 5e-4. 1e-3]")
-parser.add_argument("--N", default=4, type=int, help="Number of neighbors in [4, 8, 16]")
+parser.add_argument("--s", default=4, type=int, help="Number of neighbors in [4, 8, 16]")
 parser.add_argument("--model", default="CMPX", help="Model name")
 parser.add_argument("--node_cmp", default=0, type=int, help="if node-level compressions")
 parser.add_argument("--name", default="PRO1")

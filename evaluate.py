@@ -14,15 +14,15 @@ def evaluate(model, origin, graphs, line_graphs, args, device):
       gp = [None for _ in range(3)]
       fea = [None for _ in range(3)]
       batch_graphs = [origin[j] for j in selected]
-      x[0], gp[0], fea[0], labels = get_batch_data(batch_graphs, device, args.N)
+      x[0], gp[0], fea[0], labels = get_batch_data(batch_graphs, device, args.s)
 
       if args.node_cmp == 1:
         batch_cmp = [graphs[j] for j in selected]
-        x[1], gp[1], fea[1], _ = get_batch_data(batch_cmp, device, args.N)
+        x[1], gp[1], fea[1], _ = get_batch_data(batch_cmp, device, args.s)
 
       if args.edge_info == 1 or args.edge_cmp == 1:
         batch_lg = [line_graphs[j] for j in selected]
-        x[2], gp[2], fea[2], _ = get_batch_data(batch_lg, device, args.N)
+        x[2], gp[2], fea[2], _ = get_batch_data(batch_lg, device, args.s)
       
       prediction, origin_temp, origin_graph_temp = model(x[0], gp[0], fea[0], x[1], gp[1], fea[1], x[2], gp[2], fea[2])
       prediction = prediction.detach()
