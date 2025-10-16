@@ -114,8 +114,8 @@ def load_data(args, dataset, degree4label=False):
   start_time = 0
   end_time = 0
 
-  if dataset == "Test":
-    N = 1000
+  if dataset == "TEST":
+    N = args.test
     M = 5 * N
     for _ in range(10):
       while True:

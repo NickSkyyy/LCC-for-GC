@@ -27,6 +27,7 @@ python main.py --dataset IMDBBINARY --K 1 --T 2 --N 16 --hidden_size 1024 --node
 
 ## Detailed Settings
 - dataset: supported dataset names, `COLLAB`, `IMDBBINARY`, `IMDBMULTI`, `DD`, `NCI1`, `NCI109`, `PTC`, `PROTEINS`
+  - we also provide `TEST` to build the synthetic dataset
 - K: the number of model layers, in `[1, 2, 3]`
 - T: the number of iteration steps, in `[1, 2, 3, 4]`
 - N: the number of sampling neighbors, in `[4, 8, 16]`
@@ -45,10 +46,12 @@ python main.py --dataset IMDBBINARY --K 1 --T 2 --N 16 --hidden_size 1024 --node
 In addition to the above settings, there are several parameters that need to be explained.
 ```bash
 python main.py
+  --test_size <node number of each synthetic graph>
   --std <the noise injection ratio>
   --age <the edge removal ratio>
   --cmp_type <coarsening algorithm name>
 ```
+- test_size: node number of each synthetic dataset graph, in `[100, 1000, 10000]`
 - std: the noise injection ratio, in `[0, 0.1, 0.2, 0.3, 0.4, 0.5]`
 - age: the edge removal ratio, in `[0, 0.1, 0.2, 0.3, 0.4, 0.5]`
 - cmp_type: supported coarsening algorithm names

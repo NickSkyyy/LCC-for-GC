@@ -42,6 +42,7 @@ parser.add_argument("--cmp_type", default="cmpx")
 
 parser.add_argument("--std", default=0, type=float, help="Noise Ratio")
 parser.add_argument("--age", default=0, type=float, help="Removal Ratio")
+parser.add_argument("--test_size", default=1000, type=int, help="TEST dataset size")
 
 args = parser.parse_args()
 
